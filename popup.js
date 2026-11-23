@@ -7,12 +7,15 @@ const noticeEl = document.getElementById("notice");
 const logBoxEl = document.getElementById("logBox");
 const logSummaryEl = document.getElementById("logSummary");
 const logListEl = document.getElementById("logList");
+const settingsBoxEl = document.getElementById("settingsBox");
 
 const saveBtn = document.getElementById("saveBtn");
 const syncBtn = document.getElementById("syncBtn");
 const pushDbBtn = document.getElementById("pushDbBtn");
 const resendBtn = document.getElementById("resendBtn");
 const toggleBtn = document.getElementById("toggleBtn");
+const settingsToggleBtn = document.getElementById("settingsToggleBtn");
+const openExtBtn = document.getElementById("openExtBtn");
 const updateBannerEl = document.getElementById("updateBanner");
 const downloadUpdateBtn = document.getElementById("downloadUpdateBtn");
 const versionLabelEl = document.getElementById("versionLabel");
@@ -68,17 +71,17 @@ async function refreshStatus(note = "") {
   ]);
 
   if (health && health.ok && health.data && health.data.ok) {
-    serverStateEl.textContent = "ONLINE";
+    serverStateEl.textContent = "ОНЛАЙН";
     serverStateEl.className = "stat-val ok";
     if (health.data.mongoConnected) {
       mongoStateEl.textContent = `${health.data.kbTotal} ВОПР.`;
       mongoStateEl.className = "stat-val ok";
     } else {
-      mongoStateEl.textContent = "OFFLINE";
+      mongoStateEl.textContent = "ОФФЛАЙН";
       mongoStateEl.className = "stat-val err";
     }
   } else {
-    serverStateEl.textContent = "OFFLINE";
+    serverStateEl.textContent = "ОФФЛАЙН";
     serverStateEl.className = "stat-val err";
     const cached = local && local.ok ? local.kbTotal : 0;
     mongoStateEl.textContent = `КЕШ ${cached}`;
@@ -109,22 +112,32 @@ async function sendToActiveTab(type) {
 chrome.storage.local.get({ bridgeUrl: DEFAULT_URL }, ({ bridgeUrl }) => {
   bridgeUrlInput.value = bridgeUrl || DEFAULT_URL;
   versionLabelEl.textContent = `v${chrome.runtime.getManifest().version}`;
-  refreshStatus("Готово к работе");
+  refreshStatus("Откройте тест Moodle — ответы загрузятся автоматически");
   sendMsg({ type: "CHECK_UPDATE" }).then((u) => {
     if (u && u.ok) {
       if (u.hasUpdate) {
         pendingDownloadUrl = u.downloadUrl;
         updateBannerEl.style.display = "block";
-        downloadUpdateBtn.textContent = `ОБНОВЛЕНИЕ v${u.latestVersion} - СКАЧАТЬ`;
+        downloadUpdateBtn.textContent = `СКАЧАТЬ ОБНОВЛЕНИЕ v${u.latestVersion}`;
         updateStateEl.textContent = `ДОСТУПНА v${u.latestVersion}`;
       } else {
         updateBannerEl.style.display = "none";
-        updateStateEl.textContent = "АКТУАЛЬНАЯ ВЕРСИЯ";
+        updateStateEl.textContent = "ПОСЛЕДНЯЯ ВЕРСИЯ";
       }
     } else {
-      updateStateEl.textContent = "НЕТ СВЯЗИ С GITHUB";
+      updateStateEl.textContent = "GITHUB НЕДОСТУПЕН";
     }
   });
+});
+
+settingsToggleBtn.addEventListener("click", () => {
+  const open = settingsBoxEl.style.display !== "none";
+  settingsBoxEl.style.display = open ? "none" : "block";
+  settingsToggleBtn.textContent = open ? "Настройки" : "Скрыть";
+});
+
+openExtBtn.addEventListener("click", () => {
+  chrome.tabs.create({ url: "chrome://extensions/" });
 });
 
 downloadUpdateBtn.addEventListener("click", () => {
@@ -136,34 +149,50 @@ downloadUpdateBtn.addEventListener("click", () => {
 saveBtn.addEventListener("click", async () => {
   const val = (bridgeUrlInput.value || DEFAULT_URL).trim().replace(/\/+$/, "");
   await chrome.storage.local.set({ bridgeUrl: val });
-  await refreshStatus("Адрес сохранён");
+  await refreshStatus("Адрес сервера сохранён");
 });
 
 syncBtn.addEventListener("click", async () => {
-  noticeEl.textContent = "Синхронизация с MongoDB...";
+  noticeEl.textContent = "Синхронизация с базой...";
   const res = await sendMsg({ type: "KB_SYNC", push: true });
   if (res && res.ok && res.bridgeOnline) {
-    await refreshStatus(res.mongoConnected ? `Синхронизировано: ${res.kbTotal} вопр.` : "MongoDB недоступна");
+    await refreshStatus(res.mongoConnected ? `База обновлена: ${res.kbTotal} вопр.` : "База недоступна");
   } else {
-    await refreshStatus("Сервер не запущен");
+    await refreshStatus("Сервер просыпается — попробуйте через 10 сек");
   }
 });
 
 pushDbBtn.addEventListener("click", async () => {
-  noticeEl.textContent = "Сбор ответов и отправка в БД...";
+  noticeEl.textContent = "Собираю правильные ответы и отправляю в базу...";
   const res = await sendToActiveTab("MAB_PUSH_DB");
   if (res && res.ok) {
     if (res.hidden) {
-      await refreshStatus("На этой странице ответы скрыты");
+      await refreshStatus("На этой странице преподаватель скрыл ответы");
     } else if (res.cloudPushed) {
-      await refreshStatus(`В БД: новых +${res.added || 0}, обновлено ${res.updated || 0}`);
+      await refreshStatus(`Готово! Новых: +${res.added || 0}, обновлено: ${res.updated || 0}`);
     } else {
-      await refreshStatus(`Сохранено в кеш (${res.saved}), сервер оффлайн`);
+      await refreshStatus(`Сохранено в кеш (${res.saved}), сервер недоступен`);
     }
   } else {
-    await refreshStatus(res?.error || "Откройте review.php (просмотр теста)");
+    await refreshStatus(res?.error || "Откройте страницу результатов теста (review.php)");
   }
 });
 
-resendBtn.addEventListener("click", () => sendToActiveTab("MAB_RESEND"));
-toggleBtn.addEventListener("click", () => sendToActiveTab("MAB_TOGGLE"));
+resendBtn.addEventListener("click", async () => {
+  noticeEl.textContent = "Обновляю ответы на странице...";
+  const res = await sendToActiveTab("MAB_RESEND");
+  if (res && res.ok) {
+    await refreshStatus("Страница обновлена");
+  } else {
+    await refreshStatus(res?.error || "Откройте страницу теста Moodle");
+  }
+});
+
+toggleBtn.addEventListener("click", async () => {
+  const res = await sendToActiveTab("MAB_TOGGLE");
+  if (res && res.ok) {
+    toggleBtn.textContent = res.visible ? "Скрыть стрелку" : "Показать стрелку";
+  } else {
+    await refreshStatus("Откройте страницу теста Moodle");
+  }
+});

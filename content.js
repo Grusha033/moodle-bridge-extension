@@ -841,14 +841,14 @@
           <div class="mab-panel-list"></div>
         </div>
         <div class="mab-bar">
-          <div class="mab-bar-main" data-action="expand" title="Открыть список вопросов">
+          <div class="mab-bar-main" data-action="expand" title="Нажмите, чтобы развернуть список всех вопросов">
             <span class="mab-dot"></span>
             <span class="mab-status-text">BRIDGE</span>
             <span class="mab-chevron">${SVG_CHEVRON_UP}</span>
           </div>
-          <button class="mab-push-btn" data-action="push-db" style="display:none;" title="Собрать правильные ответы со всех страниц теста и сохранить в MongoDB">В БД</button>
-          <button class="mab-icon-btn" data-action="scan" title="Обновить базу и пересканировать">${SVG_REFRESH}</button>
-          <button class="mab-icon-btn" data-action="toggle" title="Показать/скрыть стрелку (Alt+M)">${SVG_EYE}</button>
+          <button class="mab-push-btn" data-action="push-db" style="display:none;" title="Собрать правильные ответы со всех страниц этого теста и сохранить в общую базу">СОХРАНИТЬ В БД</button>
+          <button class="mab-icon-btn" data-action="scan" title="Обновить ответы с сервера">${SVG_REFRESH}</button>
+          <button class="mab-icon-btn" data-action="toggle" title="Скрыть или показать стрелку (Alt+M)">${SVG_EYE}</button>
         </div>
       `;
 
@@ -906,13 +906,13 @@
       if (onReview) {
         pushDbBtn.classList.toggle("is-done", Boolean(reviewLearnInfo?.cloudPushed));
         if (reviewLearnInfo?.busy) {
-          pushDbBtn.textContent = "ЗАГРУЗКА...";
+          pushDbBtn.textContent = "СОХРАНЯЮ...";
           pushDbBtn.disabled = true;
         } else if (reviewLearnInfo?.cloudPushed) {
           pushDbBtn.textContent = "СОХРАНЕНО";
           pushDbBtn.disabled = false;
         } else {
-          pushDbBtn.textContent = "В БД";
+          pushDbBtn.textContent = "СОХРАНИТЬ В БД";
           pushDbBtn.disabled = false;
         }
       }

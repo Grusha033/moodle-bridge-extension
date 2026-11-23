@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Moodle Agent Bridge",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "Relays Moodle quiz questions to the MongoDB-backed bridge and AI agent, and draws arrows on correct answers.",
   "permissions": [
     "storage"
